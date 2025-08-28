@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Risk Assessment Tool for Education</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Risk Assessment Tool for Education</h1>
+            <p class="subtitle">Kennedy & Campos Taxonomy Implementation</p>
+        </header>
+
+        <!-- Section 1: Tool Selection -->
+        <div id="tool-selection" class="section active">
+            <h2>Step 1: Select AI Tool Type</h2>
+            <p class="instruction">Choose the AI tool type you want to assess for implementation risks in your educational setting.</p>
+            
+            <div class="tool-grid">
+                <div class="tool-card" data-tool="proctoring">
+                    <div class="tool-icon">=</div>
+                    <h3>AI Proctoring</h3>
+                    <p>Automated monitoring and cheating detection systems</p>
+                </div>
+                <div class="tool-card" data-tool="tutoring">
+                    <div class="tool-icon">></div>
+                    <h3>AI Tutoring</h3>
+                    <p>Personalized learning assistants and chatbots</p>
+                </div>
+                <div class="tool-card" data-tool="grading">
+                    <div class="tool-icon">=Ý</div>
+                    <h3>AI Grading</h3>
+                    <p>Automated assessment and feedback systems</p>
+                </div>
+                <div class="tool-card" data-tool="content">
+                    <div class="tool-icon">=Ú</div>
+                    <h3>Content Creation</h3>
+                    <p>AI-generated educational materials and curricula</p>
+                </div>
+                <div class="tool-card" data-tool="adaptive">
+                    <div class="tool-icon"><¯</div>
+                    <h3>Adaptive Learning</h3>
+                    <p>Personalized learning path systems</p>
+                </div>
+                <div class="tool-card" data-tool="safety">
+                    <div class="tool-icon">=á</div>
+                    <h3>Safety & Monitoring</h3>
+                    <p>Student behavior and wellbeing monitoring</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Usage Questions -->
+        <div id="usage-questions" class="section">
+            <h2>Step 2: Implementation Approach</h2>
+            <p class="instruction">Answer questions about how you plan to implement this AI tool.</p>
+            <div id="usage-form">
+                <!-- Questions will be dynamically loaded here -->
+            </div>
+            <div class="navigation">
+                <button id="usage-back" class="btn btn-secondary">Back</button>
+                <button id="usage-next" class="btn btn-primary">Next</button>
+            </div>
+        </div>
+
+        <!-- Section 3: Context Questions -->
+        <div id="context-questions" class="section">
+            <h2>Step 3: School Context</h2>
+            <p class="instruction">Provide information about your school's context and readiness for AI implementation.</p>
+            <div id="context-form">
+                <!-- Questions will be dynamically loaded here -->
+            </div>
+            <div class="navigation">
+                <button id="context-back" class="btn btn-secondary">Back</button>
+                <button id="context-next" class="btn btn-primary">Calculate Risk Assessment</button>
+            </div>
+        </div>
+
+        <!-- Section 4: Results -->
+        <div id="results" class="section">
+            <h2>AI Risk Assessment Results</h2>
+            <div id="results-content">
+                <!-- Results will be dynamically generated here -->
+            </div>
+            <div class="navigation">
+                <button id="new-assessment" class="btn btn-primary">Assess Different Tool</button>
+            </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Loading assessment data...</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
