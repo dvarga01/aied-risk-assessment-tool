@@ -1,25 +1,40 @@
-// AI Risk Assessment Tool - Main Application Logic
-// Implements Kennedy & Campos Taxonomy for Educational AI Risk Assessment
+// AI Risk Assessment Tool - Updated Application Logic
+// Implements Kennedy & Campos Taxonomy with 6 Harm Categories and 4 Interaction Layers
 
 class RiskAssessmentApp {
     constructor() {
         this.data = {
             toolQuestions: [],
             contextQuestions: [],
-            riskCalculationRules: [],
-            harmCategoriesReference: []
+            riskExplanations: [],
+            compoundRiskRules: []
         };
         
         this.state = {
             currentSection: 'tool-selection',
             selectedTool: null,
-            answers: {},
             toolAnswers: {},
             contextAnswers: {}
         };
         
-        this.harmCategories = ['BA', 'MA', 'PS', 'MC', 'HI', 'OH'];
-        this.interactionLayers = ['Output', 'Whole', 'Group', 'System'];
+        // Updated Kennedy & Campos framework with 6 harm categories
+        this.harmCategories = {
+            'Bias': 'Bias & Authenticity',
+            'Privacy': 'Privacy & Safety', 
+            'Flourishing': 'Human Flourishing & Interpretability',
+            'Organizational': 'Organizational & Human Potential',
+            'Accuracy': 'Misinformation & Accuracy',
+            'Misuse': 'Misuse & Cyberbullying'
+        };
+        
+        // 4 interaction layers from Kennedy & Campos framework
+        this.interactionLayers = {
+            'Output': 'Individual AI responses and immediate outputs',
+            'Whole': 'Complete interaction sessions and user experiences', 
+            'Group': 'Classroom and learning group dynamics',
+            'System': 'Institutional and systemic-level impacts'
+        };
+        
         this.severityLevels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
         
         this.init();
@@ -41,8 +56,8 @@ class RiskAssessmentApp {
         const csvFiles = [
             { file: 'data/tool_questions.csv', key: 'toolQuestions' },
             { file: 'data/context_questions.csv', key: 'contextQuestions' },
-            { file: 'data/risk_calculation_rules.csv', key: 'riskCalculationRules' },
-            { file: 'data/harm_categories_reference.csv', key: 'harmCategoriesReference' }
+            { file: 'data/risk_explanations.csv', key: 'riskExplanations' },
+            { file: 'data/compound_risk_rules.csv', key: 'compoundRiskRules' }
         ];
         
         const promises = csvFiles.map(({ file, key }) => 
@@ -86,21 +101,21 @@ class RiskAssessmentApp {
             });
         });
         
-        // Navigation buttons
-        document.getElementById('usage-back').addEventListener('click', () => {
+        // Navigation buttons - updated IDs to match new HTML
+        document.getElementById('tool-back').addEventListener('click', () => {
             this.showSection('tool-selection');
         });
         
-        document.getElementById('usage-next').addEventListener('click', () => {
-            if (this.validateUsageAnswers()) {
-                this.saveUsageAnswers();
+        document.getElementById('tool-next').addEventListener('click', () => {
+            if (this.validateToolAnswers()) {
+                this.saveToolAnswers();
                 this.loadContextQuestions();
                 this.showSection('context-questions');
             }
         });
         
         document.getElementById('context-back').addEventListener('click', () => {
-            this.showSection('usage-questions');
+            this.showSection('tool-questions');
         });
         
         document.getElementById('context-next').addEventListener('click', () => {
@@ -125,32 +140,38 @@ class RiskAssessmentApp {
         document.querySelector(`[data-tool="${tool}"]`).classList.add('selected');
         this.state.selectedTool = tool;
         
+        // Map tool selection to CSV tool types
+        const toolTypeMap = {
+            'plagiarism_detection': 'Plagiarism_Detection',
+            'llm_tutors': 'LLM_Tutors'
+        };
+        
         // Load questions for this tool and move to next section
         setTimeout(() => {
-            const questionsLoaded = this.loadUsageQuestions(tool);
+            const questionsLoaded = this.loadToolQuestions(toolTypeMap[tool]);
             if (questionsLoaded) {
-                this.showSection('usage-questions');
+                this.showSection('tool-questions');
             } else {
                 this.showError(`No questions found for ${tool}. Please check the data files.`);
             }
         }, 300);
     }
     
-    loadUsageQuestions(tool) {
+    loadToolQuestions(toolType) {
         const toolQuestions = this.data.toolQuestions.filter(q => 
-            q.Tool_Type && q.Tool_Type.toLowerCase() === tool.toLowerCase()
+            q.Tool_Type && q.Tool_Type === toolType
         );
         
         if (toolQuestions.length === 0) {
-            console.warn(`No questions found for tool: ${tool}`);
+            console.warn(`No questions found for tool: ${toolType}`);
             return false;
         }
         
-        const form = document.getElementById('usage-form');
+        const form = document.getElementById('tool-form');
         form.innerHTML = '';
         
         toolQuestions.forEach((question, index) => {
-            const questionDiv = this.createQuestionElement(question, `usage_${index}`);
+            const questionDiv = this.createQuestionElement(question, `tool_${index}`);
             form.appendChild(questionDiv);
         });
         
@@ -179,26 +200,27 @@ class RiskAssessmentApp {
         const optionsDiv = document.createElement('div');
         optionsDiv.className = 'question-options';
         
-        // Parse options
+        // Parse options (A, B, C, D)
         const options = this.parseOptions(question);
-        const inputType = options.length > 2 || question.response_type === 'multiple' ? 'checkbox' : 'radio';
         
         options.forEach((option, index) => {
-            const label = document.createElement('label');
-            label.className = 'option-label';
-            
-            const input = document.createElement('input');
-            input.type = inputType;
-            input.name = questionId;
-            input.value = option.value;
-            input.id = `${questionId}_${index}`;
-            
-            const text = document.createElement('span');
-            text.textContent = option.text;
-            
-            label.appendChild(input);
-            label.appendChild(text);
-            optionsDiv.appendChild(label);
+            if (option.text) { // Only create option if text exists
+                const label = document.createElement('label');
+                label.className = 'option-label';
+                
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = questionId;
+                input.value = option.value;
+                input.id = `${questionId}_${index}`;
+                
+                const text = document.createElement('span');
+                text.textContent = option.text;
+                
+                label.appendChild(input);
+                label.appendChild(text);
+                optionsDiv.appendChild(label);
+            }
         });
         
         div.appendChild(questionText);
@@ -208,27 +230,20 @@ class RiskAssessmentApp {
     }
     
     parseOptions(question) {
-        // Handle different option formats from CSV
         const options = [];
-        
-        if (question.Answer_A) {
-            options.push({ value: 'A', text: question.Answer_A });
-        }
-        if (question.Answer_B) {
-            options.push({ value: 'B', text: question.Answer_B });
-        }
-        if (question.Answer_C) {
-            options.push({ value: 'C', text: question.Answer_C });
-        }
-        if (question.Answer_D) {
-            options.push({ value: 'D', text: question.Answer_D });
-        }
-        
+        ['A', 'B', 'C', 'D'].forEach(letter => {
+            if (question[`Answer_${letter}`]) {
+                options.push({ 
+                    value: letter, 
+                    text: question[`Answer_${letter}`] 
+                });
+            }
+        });
         return options;
     }
     
-    validateUsageAnswers() {
-        const form = document.getElementById('usage-form');
+    validateToolAnswers() {
+        const form = document.getElementById('tool-form');
         const questionGroups = form.querySelectorAll('.question-group');
         
         for (let group of questionGroups) {
@@ -236,12 +251,12 @@ class RiskAssessmentApp {
             const hasAnswer = Array.from(inputs).some(input => input.checked);
             
             if (!hasAnswer) {
-                group.style.borderLeftColor = '#dc2626';
+                group.style.borderLeft = '4px solid #dc2626';
                 group.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 this.showError('Please answer all questions before proceeding.');
                 return false;
             } else {
-                group.style.borderLeftColor = '#2563eb';
+                group.style.borderLeft = '4px solid #2563eb';
             }
         }
         
@@ -257,32 +272,26 @@ class RiskAssessmentApp {
             const hasAnswer = Array.from(inputs).some(input => input.checked);
             
             if (!hasAnswer) {
-                group.style.borderLeftColor = '#dc2626';
+                group.style.borderLeft = '4px solid #dc2626';
                 group.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 this.showError('Please answer all questions before proceeding.');
                 return false;
             } else {
-                group.style.borderLeftColor = '#2563eb';
+                group.style.borderLeft = '4px solid #2563eb';
             }
         }
         
         return true;
     }
     
-    saveUsageAnswers() {
-        const form = document.getElementById('usage-form');
+    saveToolAnswers() {
+        const form = document.getElementById('tool-form');
         const inputs = form.querySelectorAll('input:checked');
         
         this.state.toolAnswers = {};
         
         inputs.forEach(input => {
-            const name = input.name;
-            const value = input.value;
-            
-            if (!this.state.toolAnswers[name]) {
-                this.state.toolAnswers[name] = [];
-            }
-            this.state.toolAnswers[name].push(value);
+            this.state.toolAnswers[input.name] = input.value;
         });
     }
     
@@ -293,13 +302,7 @@ class RiskAssessmentApp {
         this.state.contextAnswers = {};
         
         inputs.forEach(input => {
-            const name = input.name;
-            const value = input.value;
-            
-            if (!this.state.contextAnswers[name]) {
-                this.state.contextAnswers[name] = [];
-            }
-            this.state.contextAnswers[name].push(value);
+            this.state.contextAnswers[input.name] = input.value;
         });
     }
     
@@ -320,41 +323,46 @@ class RiskAssessmentApp {
     
     calculateRiskProfile() {
         const profile = {
+            toolType: this.state.selectedTool,
             harmCategories: {},
-            interactionLayers: {},
             overallRisk: 'LOW',
-            details: []
+            activeRisks: []
         };
         
         // Initialize harm categories
-        this.harmCategories.forEach(category => {
+        Object.keys(this.harmCategories).forEach(category => {
             profile.harmCategories[category] = {
                 severity: 'LOW',
-                risks: [],
-                layerManifestations: {}
+                hasRisk: false,
+                explanation: null
             };
         });
         
         // Process tool-specific answers
         this.state.currentToolQuestions.forEach((question, index) => {
-            const answers = this.state.toolAnswers[`usage_${index}`] || [];
+            const answerKey = `tool_${index}`;
+            const answer = this.state.toolAnswers[answerKey];
             
-            answers.forEach(answer => {
-                this.processAnswerHarms(question, answer, profile);
-            });
+            if (answer) {
+                this.processAnswerRisks(question, answer, profile);
+            }
         });
         
-        // Process context modifiers
+        // Apply context modifiers
         this.data.contextQuestions.forEach((question, index) => {
-            const answers = this.state.contextAnswers[`context_${index}`] || [];
+            const answerKey = `context_${index}`;
+            const answer = this.state.contextAnswers[answerKey];
             
-            answers.forEach(answer => {
+            if (answer) {
                 this.applyContextModifiers(question, answer, profile);
-            });
+            }
         });
         
         // Apply compound risk rules
         this.applyCompoundRiskRules(profile);
+        
+        // Get explanations for active risks
+        this.addRiskExplanations(profile);
         
         // Determine overall risk level
         profile.overallRisk = this.determineOverallRisk(profile);
@@ -362,70 +370,40 @@ class RiskAssessmentApp {
         return profile;
     }
     
-    processAnswerHarms(question, answer, profile) {
-        // Check which harm categories this answer triggers
-        this.harmCategories.forEach(category => {
-            const answerColumn = `${answer}_${category}`;
+    processAnswerRisks(question, answer, profile) {
+        Object.keys(this.harmCategories).forEach(category => {
+            const riskColumn = `${answer}_${category}`;
+            const severityColumn = `${answer}_Severity`;
             
-            if (question[answerColumn] === 'TRUE' || question[answerColumn] === 'true' || question[answerColumn] === '1') {
-                const severity = question[`${answer}_Severity`] || 'LOW';
+            if (question[riskColumn] === 'TRUE' || question[riskColumn] === 'true') {
+                const severity = question[severityColumn] || 'LOW';
                 
-                // Update severity if higher
+                // Update if higher severity
                 if (this.isSeverityHigher(severity, profile.harmCategories[category].severity)) {
                     profile.harmCategories[category].severity = severity;
                 }
                 
-                // Add risk details
-                profile.harmCategories[category].risks.push({
-                    question: question.Question_Text,
-                    answer: this.getAnswerText(question, answer),
-                    severity: severity,
-                    description: question.Notes || 'Potential risk identified'
-                });
-                
-                // Check interaction layers
-                this.interactionLayers.forEach(layer => {
-                    const layerColumn = `${answer}_${layer}`;
-                    
-                    if (question[layerColumn] === 'TRUE' || question[layerColumn] === 'true' || question[layerColumn] === '1') {
-                        if (!profile.harmCategories[category].layerManifestations[layer]) {
-                            profile.harmCategories[category].layerManifestations[layer] = [];
-                        }
-                        
-                        profile.harmCategories[category].layerManifestations[layer].push({
-                            description: this.getLayerDescription(category, layer),
-                            severity: severity
-                        });
-                    }
-                });
+                profile.harmCategories[category].hasRisk = true;
             }
         });
     }
     
     applyContextModifiers(question, answer, profile) {
-        // Apply context-based risk modifiers
-        this.harmCategories.forEach(category => {
-            const affectsColumn = `${answer}_Affects_${category}`;
-            const modifierColumn = `${answer}_Age_Modifier`;
+        Object.keys(this.harmCategories).forEach(category => {
+            const modifierColumn = `${answer}_${category}_Modifier`;
+            const modifier = parseInt(question[modifierColumn]) || 0;
             
-            // Check if this answer affects this category
-            if (question[affectsColumn] === 'TRUE' || question[affectsColumn] === 'true') {
-                const modifier = parseInt(question[modifierColumn]) || 0;
-                
-                if (modifier !== 0) {
-                    const currentSeverity = profile.harmCategories[category].severity;
-                    const newSeverity = this.applySeverityModifier(currentSeverity, modifier);
-                    
-                    if (this.isSeverityHigher(newSeverity, currentSeverity)) {
-                        profile.harmCategories[category].severity = newSeverity;
-                    }
-                }
+            if (modifier !== 0 && profile.harmCategories[category].hasRisk) {
+                const currentSeverity = profile.harmCategories[category].severity;
+                const newSeverity = this.applySeverityModifier(currentSeverity, modifier);
+                profile.harmCategories[category].severity = newSeverity;
             }
         });
     }
     
     applyCompoundRiskRules(profile) {
-        this.data.riskCalculationRules.forEach(rule => {
+        // Implementation of compound risk rules based on compound_risk_rules.csv
+        this.data.compoundRiskRules.forEach(rule => {
             if (this.ruleApplies(rule, profile)) {
                 this.applyRule(rule, profile);
             }
@@ -433,14 +411,166 @@ class RiskAssessmentApp {
     }
     
     ruleApplies(rule, profile) {
-        // Check if compound risk rule conditions are met
-        // This would need to be implemented based on the specific rules in your CSV
-        return false; // Placeholder
+        const conditions = rule.Trigger_Conditions;
+        const toolType = rule.Tool_Type;
+        
+        // Check if rule applies to current tool or both tools
+        if (toolType !== 'Both_Tools' && !this.state.selectedTool.includes(toolType.toLowerCase().replace('_', '_'))) {
+            return false;
+        }
+        
+        // Parse and evaluate conditions
+        try {
+            // Handle different condition formats
+            if (conditions.includes('Bias=HIGH') && profile.harmCategories['Bias'].severity === 'HIGH') {
+                if (conditions.includes('Vulnerable_Population>=60%')) {
+                    // Check context for vulnerable population percentage
+                    return this.checkVulnerablePopulation(profile, 60);
+                }
+                return true;
+            }
+            
+            if (conditions.includes('Bias=CRITICAL') && profile.harmCategories['Bias'].severity === 'CRITICAL') {
+                if (conditions.includes('No_Appeals=TRUE')) {
+                    return this.checkNoAppeals(profile);
+                }
+                return true;
+            }
+            
+            if (conditions.includes('Integration=Automated')) {
+                return this.checkAutomatedIntegration(profile);
+            }
+            
+            if (conditions.includes('Count_CRITICAL_Risks>=2')) {
+                const criticalCount = Object.values(profile.harmCategories)
+                    .filter(cat => cat.hasRisk && cat.severity === 'CRITICAL').length;
+                return criticalCount >= 2;
+            }
+            
+            if (conditions.includes('Count_HIGH_Risks>=2')) {
+                const highCount = Object.values(profile.harmCategories)
+                    .filter(cat => cat.hasRisk && cat.severity === 'HIGH').length;
+                return highCount >= 2;
+            }
+            
+        } catch (error) {
+            console.warn('Error evaluating rule condition:', conditions, error);
+        }
+        
+        return false;
     }
     
     applyRule(rule, profile) {
-        // Apply the compound risk rule
-        // Implementation depends on rule structure
+        const effect = rule.Escalation_Effect;
+        const warning = rule.Special_Warning;
+        
+        try {
+            if (effect === 'Escalate_to_CRITICAL') {
+                // Escalate specific category to CRITICAL
+                const category = this.extractCategoryFromRule(rule);
+                if (category && profile.harmCategories[category]) {
+                    profile.harmCategories[category].severity = 'CRITICAL';
+                    profile.harmCategories[category].hasRisk = true;
+                }
+            } else if (effect.includes('Escalate_') && effect.includes('_to_')) {
+                // Handle specific escalations like "Escalate_Privacy_to_HIGH"
+                const parts = effect.split('_to_');
+                const categoryPart = parts[0].replace('Escalate_', '');
+                const newSeverity = parts[1];
+                
+                if (profile.harmCategories[categoryPart]) {
+                    profile.harmCategories[categoryPart].severity = newSeverity;
+                    profile.harmCategories[categoryPart].hasRisk = true;
+                }
+            } else if (effect === 'Escalate_All_to_HIGH') {
+                Object.keys(profile.harmCategories).forEach(category => {
+                    if (profile.harmCategories[category].hasRisk) {
+                        const currentSeverity = profile.harmCategories[category].severity;
+                        if (this.isSeverityHigher('HIGH', currentSeverity)) {
+                            profile.harmCategories[category].severity = 'HIGH';
+                        }
+                    }
+                });
+            }
+            
+            // Add special warning if provided
+            if (warning) {
+                if (!profile.compoundWarnings) {
+                    profile.compoundWarnings = [];
+                }
+                profile.compoundWarnings.push({
+                    ruleId: rule.Rule_ID,
+                    warning: warning,
+                    riskCombination: rule.Risk_Combination
+                });
+            }
+            
+        } catch (error) {
+            console.warn('Error applying rule effect:', effect, error);
+        }
+    }
+    
+    checkVulnerablePopulation(profile, threshold) {
+        // Check context answers for vulnerable population percentage
+        const contextAnswers = Object.values(this.state.contextAnswers);
+        // This would need to be implemented based on specific context question structure
+        // For now, return a placeholder
+        return contextAnswers.includes('D'); // Assuming D represents highest vulnerability
+    }
+    
+    checkNoAppeals(profile) {
+        // Check if "No formal appeals" was selected in tool questions
+        const toolAnswers = Object.values(this.state.toolAnswers);
+        return toolAnswers.includes('A'); // Assuming A represents no appeals
+    }
+    
+    checkAutomatedIntegration(profile) {
+        // Check if automated integration was selected
+        const toolAnswers = Object.values(this.state.toolAnswers);
+        return toolAnswers.includes('D'); // Assuming D represents automated integration
+    }
+    
+    extractCategoryFromRule(rule) {
+        // Extract category name from rule context
+        const combination = rule.Risk_Combination;
+        if (combination.includes('Bias')) return 'Bias';
+        if (combination.includes('Privacy')) return 'Privacy';
+        if (combination.includes('Flourishing')) return 'Flourishing';
+        if (combination.includes('Organizational')) return 'Organizational';
+        if (combination.includes('Accuracy')) return 'Accuracy';
+        if (combination.includes('Misuse')) return 'Misuse';
+        return null;
+    }
+    
+    addRiskExplanations(profile) {
+        const toolTypeMap = {
+            'plagiarism_detection': 'Plagiarism_Detection',
+            'llm_tutors': 'LLM_Tutors'
+        };
+        
+        const csvToolType = toolTypeMap[this.state.selectedTool];
+        
+        Object.keys(profile.harmCategories).forEach(category => {
+            const categoryData = profile.harmCategories[category];
+            
+            if (categoryData.hasRisk) {
+                const explanation = this.data.riskExplanations.find(exp => 
+                    exp.Risk_Category === category &&
+                    exp.Severity_Level === categoryData.severity &&
+                    exp.Tool_Type === csvToolType
+                );
+                
+                if (explanation) {
+                    categoryData.explanation = explanation;
+                    profile.activeRisks.push({
+                        category: category,
+                        categoryName: this.harmCategories[category],
+                        severity: categoryData.severity,
+                        explanation: explanation
+                    });
+                }
+            }
+        });
     }
     
     isSeverityHigher(newSeverity, currentSeverity) {
@@ -459,59 +589,12 @@ class RiskAssessmentApp {
         let highestSeverity = 'LOW';
         
         Object.values(profile.harmCategories).forEach(category => {
-            if (this.isSeverityHigher(category.severity, highestSeverity)) {
+            if (category.hasRisk && this.isSeverityHigher(category.severity, highestSeverity)) {
                 highestSeverity = category.severity;
             }
         });
         
         return highestSeverity;
-    }
-    
-    getAnswerText(question, answer) {
-        return question[`Answer_${answer}`] || answer;
-    }
-    
-    getLayerDescription(category, layer) {
-        const descriptions = {
-            'BA': {
-                'Output': 'Individual AI responses may contain biased or inauthentic content',
-                'Whole': 'Complete interactions reinforce bias patterns',
-                'Group': 'Classroom dynamics affected by biased AI outputs',
-                'System': 'Institutional bias embedded in AI systems'
-            },
-            'MA': {
-                'Output': 'Individual responses may contain misinformation',
-                'Whole': 'System-wide accuracy issues affect learning',
-                'Group': 'Misinformation spreads through group interactions',
-                'System': 'Institutional reliance on inaccurate AI systems'
-            },
-            'PS': {
-                'Output': 'Individual privacy violations in AI responses',
-                'Whole': 'Complete interaction data collection and storage',
-                'Group': 'Group privacy and safety concerns',
-                'System': 'Institutional data handling and safety protocols'
-            },
-            'MC': {
-                'Output': 'Individual misuse of AI-generated content',
-                'Whole': 'System enables cyberbullying or misuse',
-                'Group': 'Group-level misuse and harassment',
-                'System': 'Institutional failure to prevent misuse'
-            },
-            'HI': {
-                'Output': 'Individual responses lack interpretability',
-                'Whole': 'System reduces human flourishing',
-                'Group': 'Group learning experiences diminished',
-                'System': 'Institutional over-reliance on AI reduces human potential'
-            },
-            'OH': {
-                'Output': 'Individual organizational impacts',
-                'Whole': 'Complete system affects organizational function',
-                'Group': 'Group-level organizational changes',
-                'System': 'System-wide organizational transformation'
-            }
-        };
-        
-        return descriptions[category]?.[layer] || `${category} risk at ${layer} level`;
     }
     
     displayResults(riskProfile) {
@@ -521,93 +604,150 @@ class RiskAssessmentApp {
         // Overall risk summary
         const summaryDiv = document.createElement('div');
         summaryDiv.className = 'results-summary';
-        
-        const overallDiv = document.createElement('div');
-        overallDiv.className = `harm-category ${riskProfile.overallRisk.toLowerCase()}`;
-        overallDiv.innerHTML = `
-            <h4>Overall Risk Level</h4>
-            <span class="risk-level ${riskProfile.overallRisk.toLowerCase()}">${riskProfile.overallRisk}</span>
+        summaryDiv.innerHTML = `
+            <div class="overall-risk ${riskProfile.overallRisk.toLowerCase()}">
+                <h3>Overall Risk Level</h3>
+                <div class="risk-badge ${riskProfile.overallRisk.toLowerCase()}">${riskProfile.overallRisk}</div>
+                <p class="risk-description">
+                    Based on your ${riskProfile.activeRisks.length} identified risk categories for 
+                    ${this.getToolDisplayName(riskProfile.toolType)} implementation.
+                </p>
+            </div>
         `;
-        summaryDiv.appendChild(overallDiv);
-        
-        // Harm categories summary
-        this.harmCategories.forEach(category => {
-            const categoryData = riskProfile.harmCategories[category];
-            if (categoryData.risks.length > 0) {
-                const categoryDiv = document.createElement('div');
-                categoryDiv.className = `harm-category ${categoryData.severity.toLowerCase()}`;
-                categoryDiv.innerHTML = `
-                    <h4>${this.getHarmCategoryName(category)}</h4>
-                    <span class="risk-level ${categoryData.severity.toLowerCase()}">${categoryData.severity}</span>
-                    <p class="mt-1">${categoryData.risks.length} risk(s) identified</p>
-                `;
-                summaryDiv.appendChild(categoryDiv);
-            }
-        });
-        
         container.appendChild(summaryDiv);
         
-        // Interaction layers detail
-        const layersDiv = document.createElement('div');
-        layersDiv.className = 'interaction-layers';
-        layersDiv.innerHTML = '<h3>Risk Manifestations Across Interaction Layers</h3>';
-        
-        this.interactionLayers.forEach(layer => {
-            const layerSection = document.createElement('div');
-            layerSection.className = 'layer-section';
-            
-            const header = document.createElement('div');
-            header.className = 'layer-header';
-            header.textContent = `${layer} Level`;
-            
-            const content = document.createElement('div');
-            content.className = 'layer-content';
-            
-            let hasRisks = false;
-            
-            this.harmCategories.forEach(category => {
-                const manifestations = riskProfile.harmCategories[category].layerManifestations[layer];
-                
-                if (manifestations && manifestations.length > 0) {
-                    hasRisks = true;
-                    
-                    manifestations.forEach(manifestation => {
-                        const riskItem = document.createElement('div');
-                        riskItem.className = 'risk-item';
-                        riskItem.innerHTML = `
-                            <div class="risk-description">
-                                <strong>${this.getHarmCategoryName(category)}:</strong>
-                                ${manifestation.description}
+        // Compound risk warnings
+        if (riskProfile.compoundWarnings && riskProfile.compoundWarnings.length > 0) {
+            const warningsDiv = document.createElement('div');
+            warningsDiv.className = 'compound-warnings';
+            warningsDiv.innerHTML = `
+                <h3>⚠️ Compound Risk Warnings</h3>
+                <div class="warning-content">
+                    <p><strong>Dangerous Risk Combinations Detected:</strong></p>
+                    ${riskProfile.compoundWarnings.map(warning => `
+                        <div class="warning-item">
+                            <div class="warning-header">
+                                <strong>${warning.riskCombination}</strong>
+                                <span class="warning-badge">HIGH PRIORITY</span>
                             </div>
-                            <span class="risk-level ${manifestation.severity.toLowerCase()}">${manifestation.severity}</span>
-                        `;
-                        content.appendChild(riskItem);
-                    });
-                }
+                            <p>${warning.warning}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            container.appendChild(warningsDiv);
+        }
+        
+        // Risk categories with 4 interaction layers
+        if (riskProfile.activeRisks.length > 0) {
+            const risksDiv = document.createElement('div');
+            risksDiv.className = 'risk-categories';
+            risksDiv.innerHTML = '<h3>Risk Analysis by Kennedy & Campos Framework</h3>';
+            
+            riskProfile.activeRisks.forEach(risk => {
+                const riskDiv = document.createElement('div');
+                riskDiv.className = `risk-category ${risk.severity.toLowerCase()}`;
+                
+                riskDiv.innerHTML = `
+                    <div class="risk-header">
+                        <h4>${risk.categoryName}</h4>
+                        <div class="risk-badge ${risk.severity.toLowerCase()}">${risk.severity}</div>
+                    </div>
+                    <div class="risk-explanation">
+                        <p>${risk.explanation.Explanation_Text}</p>
+                        ${risk.explanation.Citation_Text ? `
+                            <div class="citation">
+                                <strong>Research Citation:</strong> ${risk.explanation.Citation_Text}
+                                ${risk.explanation.Citation_URL ? `<br><a href="${risk.explanation.Citation_URL}" target="_blank">View Research</a>` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="interaction-layers">
+                        <h5>Risk Manifestation Across Interaction Layers:</h5>
+                        ${this.generateLayerDescriptions(risk.category)}
+                    </div>
+                `;
+                
+                risksDiv.appendChild(riskDiv);
             });
             
-            if (!hasRisks) {
-                content.innerHTML = '<p style="color: #059669;">No significant risks identified at this level.</p>';
-            }
-            
-            layerSection.appendChild(header);
-            layerSection.appendChild(content);
-            layersDiv.appendChild(layerSection);
-        });
+            container.appendChild(risksDiv);
+        } else {
+            const noRiskDiv = document.createElement('div');
+            noRiskDiv.className = 'no-risks';
+            noRiskDiv.innerHTML = `
+                <h3>No Significant Risks Identified</h3>
+                <p>Based on your responses, the selected implementation approach shows minimal risks across the Kennedy & Campos harm categories.</p>
+            `;
+            container.appendChild(noRiskDiv);
+        }
         
-        container.appendChild(layersDiv);
+        // Framework information
+        const frameworkDiv = document.createElement('div');
+        frameworkDiv.className = 'framework-info';
+        frameworkDiv.innerHTML = `
+            <h4>About This Assessment</h4>
+            <p>This assessment is based on the <strong>Kennedy & Campos "Vernacularized Taxonomy of AI Harms in Education"</strong> framework, 
+            which identifies risks across 6 harm categories and 4 interaction layers to provide comprehensive risk evaluation for educational AI implementations.</p>
+        `;
+        container.appendChild(frameworkDiv);
     }
     
-    getHarmCategoryName(code) {
-        const names = {
-            'BA': 'Bias & Authenticity',
-            'MA': 'Misinformation & Accuracy',
-            'PS': 'Privacy & Safety',
-            'MC': 'Misuse & Cyberbullying',
-            'HI': 'Human Flourishing & Interpretability',
-            'OH': 'Organizational & Human Potential'
+    generateLayerDescriptions(category) {
+        const descriptions = {
+            'Bias': {
+                'Output': 'Individual AI responses may contain biased assumptions or discriminatory content',
+                'Whole': 'Complete interactions reinforce systematic bias patterns over time',
+                'Group': 'Classroom dynamics affected by biased AI outputs creating unfair group experiences',
+                'System': 'Institutional embedding of biased AI systems affecting policies and culture'
+            },
+            'Privacy': {
+                'Output': 'Individual AI responses may expose or misuse personal student information',
+                'Whole': 'Complete interaction sessions create comprehensive behavioral profiles',
+                'Group': 'Group privacy violations through collective data analysis and sharing',
+                'System': 'Institution-wide data collection creating permanent surveillance infrastructure'
+            },
+            'Flourishing': {
+                'Output': 'Individual AI responses may reduce student agency and critical thinking',
+                'Whole': 'Complete AI interactions replace authentic learning relationships',
+                'Group': 'Group learning dynamics diminished through AI mediation',
+                'System': 'Institutional over-reliance on AI reduces human potential development'
+            },
+            'Organizational': {
+                'Output': 'Individual AI outputs create administrative burden and complexity',
+                'Whole': 'Complete AI systems require significant organizational restructuring',
+                'Group': 'Group-level changes in roles and responsibilities due to AI implementation',
+                'System': 'System-wide organizational transformation and dependency on AI vendors'
+            },
+            'Accuracy': {
+                'Output': 'Individual AI responses may contain factual errors or misinformation',
+                'Whole': 'Complete AI interactions may reinforce misconceptions systematically',
+                'Group': 'Group learning affected by collectively shared AI misinformation',
+                'System': 'Institutional reliance on potentially inaccurate AI systems'
+            },
+            'Misuse': {
+                'Output': 'Individual AI responses can be misused for academic shortcuts or cheating',
+                'Whole': 'Complete AI interactions enable systematic academic dishonesty',
+                'Group': 'Group misuse creating unfair academic advantages or cyberbullying',
+                'System': 'Institutional failure to prevent systematic AI misuse and abuse'
+            }
         };
-        return names[code] || code;
+        
+        const categoryDescriptions = descriptions[category] || {};
+        
+        return Object.entries(this.interactionLayers).map(([layer, layerDesc]) => `
+            <div class="layer-item">
+                <strong>${layer} Level:</strong> ${categoryDescriptions[layer] || `${category} risks at the ${layer.toLowerCase()} level`}
+            </div>
+        `).join('');
+    }
+    
+    getToolDisplayName(toolType) {
+        const names = {
+            'plagiarism_detection': 'Plagiarism Detection',
+            'llm_tutors': 'LLM Tutors'
+        };
+        return names[toolType] || toolType;
     }
     
     showSection(sectionId) {
@@ -618,7 +758,7 @@ class RiskAssessmentApp {
         document.getElementById(sectionId).classList.add('active');
         this.state.currentSection = sectionId;
         
-        // Scroll to top
+        // Scroll to top smoothly
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     
@@ -631,7 +771,6 @@ class RiskAssessmentApp {
     }
     
     showError(message) {
-        // Create a better error display instead of alert
         const existingError = document.querySelector('.error-message');
         if (existingError) {
             existingError.remove();
@@ -647,20 +786,16 @@ class RiskAssessmentApp {
             border-radius: 8px;
             margin: 1rem 0;
             font-weight: 500;
+            animation: slideIn 0.3s ease-out;
         `;
         errorDiv.textContent = message;
         
-        // Add to current section
         const activeSection = document.querySelector('.section.active');
         if (activeSection) {
             activeSection.insertBefore(errorDiv, activeSection.firstChild.nextSibling);
         }
         
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            errorDiv.remove();
-        }, 5000);
-        
+        setTimeout(() => errorDiv.remove(), 5000);
         this.hideLoading();
     }
     
@@ -668,27 +803,23 @@ class RiskAssessmentApp {
         this.state = {
             currentSection: 'tool-selection',
             selectedTool: null,
-            answers: {},
             toolAnswers: {},
             contextAnswers: {}
         };
         
-        // Clear tool selection
         document.querySelectorAll('.tool-card').forEach(card => {
             card.classList.remove('selected');
         });
         
-        // Clear forms
-        document.getElementById('usage-form').innerHTML = '';
+        document.getElementById('tool-form').innerHTML = '';
         document.getElementById('context-form').innerHTML = '';
         document.getElementById('results-content').innerHTML = '';
         
-        // Show first section
         this.showSection('tool-selection');
     }
 }
 
-// Initialize the application when the DOM is loaded
+// Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
     window.riskAssessmentApp = new RiskAssessmentApp();
 });
